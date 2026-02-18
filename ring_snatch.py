@@ -71,6 +71,7 @@ def grab_frame_from_stream(access_token):
                 
                 buffer = b""
                 start_time = time.time()
+                last_good_frame = None
                 
                 while (time.time() - start_time) < 15: # Read for up to 15s per connection
                     # Read chunks
@@ -89,18 +90,39 @@ def grab_frame_from_stream(access_token):
                             log("Found a JPEG frame!")
                             jpeg_data = buffer[start:end+2]
                             
-                            with open(OUTPUT_FILE, 'wb') as f:
-                                f.write(jpeg_data)
+                            # Update candidate
+                            last_good_frame = jpeg_data
                             
-                            log(f"Saved {len(jpeg_data)} bytes to {OUTPUT_FILE}")
-                            return True
+                            # Advance buffer past this frame
+                            buffer = buffer[end+2:]
                             
-                        # Keep buffer size manageable
-                        if len(buffer) > 2_000_000: 
+                            # If we have enough data (time > 6s), save and exit
+                            if (time.time() - start_time) > 6:
+                                log("Duration met. Saving last captured frame.")
+                                with open(OUTPUT_FILE, 'wb') as f:
+                                    f.write(last_good_frame)
+                                log(f"Saved {len(last_good_frame)} bytes to {OUTPUT_FILE}")
+                                return True
+                                
+                            # Otherwise continue to get a fresher frame
+                            continue
+
+                    # Keep buffer size manageable (only if no frame found yet)
+                    if len(buffer) > 2_000_000:
+                         # meaningful start check
+                         start = buffer.find(b'\xff\xd8')
+                         if start != -1:
                              buffer = buffer[start:]
-                    else:
-                        if len(buffer) > 10000:
-                            buffer = buffer[-2000:]
+                         else:
+                             buffer = buffer[-2000:]
+                
+                # If we exit loop but have a frame (e.g. stream closed early), save it
+                if last_good_frame:
+                    log("Stream ended but we have a frame. Saving it.")
+                    with open(OUTPUT_FILE, 'wb') as f:
+                        f.write(last_good_frame)
+                    log(f"Saved {len(last_good_frame)} bytes to {OUTPUT_FILE}")
+                    return True
                 
                 log("Stream closed or empty without full frame.")
                 

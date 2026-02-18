@@ -51,11 +51,28 @@ We updated the `ring-mqtt` config to point to the host IP, **not** localhost.
 
 `/opt/ring-mqtt/config.json`:
 ```json
-"mqtt_url": "mqtt://user:pass@192.168.68.119:1883"
+"mqtt_url": "mqtt://user:pass@192.168.68.119:1883",
+"local_stream_ip": "192.168.68.119"
 ```
+
+### 5. Patch ring-mqtt for RTSP Streaming
+Even with `local_stream_ip` set, `ring-mqtt` (v5.x) defaults to advertising its internal Docker IP (`172.x.x.x`) when running in Docker mode. This causes Home Assistant (running on host network) to fail with `502 Bad Gateway` when trying to access the stream.
+
+To fix this, we patched `/app/ring-mqtt/devices/camera.js` inside the container to prioritize the configured `local_stream_ip`:
+
+```javascript
+// Before
+streamSourceUrlBase = await utils.getHostIp()
+
+// After
+streamSourceUrlBase = utils.config().local_stream_ip || await utils.getHostIp()
+```
+
+This forces `ring-mqtt` to advertise the host IP (`192.168.68.119`), which maps port 8554 correctly to the container.
 
 ## Outcome
 *   ✅ **Snapshots:** Working perfectly in Home Assistant.
+*   ✅ **Live Stream:** Accessible via RTSP on host IP.
 *   ✅ **Token Refresh:** Handled automatically by `ring-mqtt`.
 *   ✅ **Force Wake:** Supported via the snapshot button/switch in HA.
 
