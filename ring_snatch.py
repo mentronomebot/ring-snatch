@@ -6,7 +6,7 @@ import subprocess
 import time
 
 # Configuration
-HA_BASE_URL = os.getenv("HA_BASE_URL", "http://supervisor/core")
+HA_BASE_URL = os.getenv("HA_BASE_URL", "http://127.0.0.1:8123")
 TOKEN = os.getenv("SUPERVISOR_TOKEN", os.getenv("HA_TOKEN", ""))
 # We use the info sensor to get the direct RTSP URL (bypassing HA proxy)
 INFO_SENSOR_ID = "sensor.front_door_info"
