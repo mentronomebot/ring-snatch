@@ -4,10 +4,24 @@ import json
 import urllib.request
 import subprocess
 import time
+import yaml
 
 # Configuration
 HA_BASE_URL = os.getenv("HA_BASE_URL", "http://127.0.0.1:8123")
-TOKEN = os.getenv("SUPERVISOR_TOKEN", os.getenv("HA_TOKEN", ""))
+
+def _load_token():
+    """Load token from env vars, falling back to secrets.yaml."""
+    token = os.getenv("SUPERVISOR_TOKEN") or os.getenv("HA_TOKEN")
+    if token:
+        return token
+    try:
+        with open("/config/secrets.yaml") as f:
+            secrets = yaml.safe_load(f)
+        return secrets.get("ring_snatch_token", "")
+    except Exception:
+        return ""
+
+TOKEN = _load_token()
 # We use the info sensor to get the direct RTSP URL (bypassing HA proxy)
 INFO_SENSOR_ID = "sensor.front_door_info"
 OUTPUT_FILE = "/config/www/snapshots/ring_last_motion.jpg"
